@@ -23,7 +23,7 @@ pub struct NewEvent<'a> {
     pub payload: &'a Value,
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct PgOutboxQueue;
 
 impl OutboxQueue for PgOutboxQueue {
