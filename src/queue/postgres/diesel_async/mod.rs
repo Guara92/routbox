@@ -25,7 +25,7 @@ pub struct NewEvent<'a> {
 pub struct PgOutboxQueue;
 
 impl OutboxQueue for PgOutboxQueue {
-    type Transaction<'a> = &'a mut diesel_async::AsyncPgConnection;
+    type Transaction<'a> = &'a mut AsyncPgConnection;
 
     async fn append(
         &self,
