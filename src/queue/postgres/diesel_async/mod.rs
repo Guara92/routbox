@@ -54,7 +54,7 @@ impl PgOutboxQueue {
         &self,
         transaction: &mut AsyncPgConnection,
     ) -> Result<()> {
-        // Ensure diesel is set up migration
+        // Ensure diesel is set up
         transaction
             .batch_execute(diesel::migration::CREATE_MIGRATIONS_TABLE)
             .await?;
