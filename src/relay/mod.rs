@@ -6,7 +6,6 @@ pub mod kafka;
 
 use crate::errors::Result;
 
-trait OutboxRelay {
+pub trait OutboxRelay {
     async fn send(&self) -> Result<()>;
 }
-
