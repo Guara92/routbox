@@ -34,12 +34,12 @@ impl OutboxQueue for PgOutboxQueue {
         event_id: Uuid,
         payload: &impl Serialize,
         aggregate_id: &Uuid,
-        event_name: impl AsRef<String>,
+        event_name: &str,
     ) -> Result<()> {
         let row = NewEvent {
             id: event_id,
             aggregate_id,
-            event_name: event_name.as_ref(),
+            event_name,
             payload: serde_json::to_value(payload)?,
         };
 
