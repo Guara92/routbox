@@ -17,7 +17,7 @@ pub const CREATE_QUEUE_MIGRATION: &str =
 #[diesel(table_name = outbox_queue)]
 pub struct NewEvent<'a> {
     pub id: Uuid,
-    pub aggregate_id: &'a Uuid,
+    pub aggregate_id: Uuid,
     pub event_name: &'a str,
     pub payload: Value,
 }
@@ -33,7 +33,7 @@ impl OutboxQueue for PgOutboxQueue {
         transaction: Self::Transaction<'_>,
         event_id: Uuid,
         payload: &impl Serialize,
-        aggregate_id: &Uuid,
+        aggregate_id: Uuid,
         event_name: &str,
     ) -> Result<()> {
         let row = NewEvent {
