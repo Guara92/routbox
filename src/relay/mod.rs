@@ -7,5 +7,5 @@ pub mod kafka;
 use crate::errors::Result;
 
 pub trait OutboxRelay {
-    async fn send(&self) -> Result<()>;
+    fn send(&self) -> impl std::future::Future<Output=Result<()>> + Send;
 }

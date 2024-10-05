@@ -15,6 +15,10 @@ pub enum Error {
     RustPostgresError(#[from] tokio_postgres::Error),
 
     #[cfg(feature = "diesel-async")]
+    #[error("Failed to serialize event payload")]
+    SerializationError(#[from] serde_json::Error),
+
+    #[cfg(feature = "diesel-async")]
     #[error("Failed to write item to the queue")]
     DieselAsyncError(#[from] diesel::result::Error),
 

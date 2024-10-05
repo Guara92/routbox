@@ -2,11 +2,12 @@
 pub mod postgres;
 
 use crate::errors::Result;
+use serde::Serialize;
 
 use uuid::Uuid;
 
 pub trait OutboxQueue {
     type Transaction<'a>;
 
-    async fn append(&self, transaction: Self::Transaction<'_>, payload: &serde_json::Value, aggregate_id: &Uuid, event_type: impl AsRef<String>) -> Result<()>;
+    fn append(&self, transaction: Self::Transaction<'_>, event_id: Uuid, payload: &(impl Serialize + Sync), aggregate_id: &Uuid, event_type: impl AsRef<String> + Send) -> impl std::future::Future<Output=Result<()>> + Send;
 }

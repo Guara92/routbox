@@ -6,6 +6,7 @@ use crate::queue::OutboxQueue;
 
 use diesel::prelude::*;
 use diesel_async::{AsyncPgConnection, RunQueryDsl, SimpleAsyncConnection};
+use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
@@ -18,7 +19,7 @@ pub struct NewEvent<'a> {
     pub id: Uuid,
     pub aggregate_id: &'a Uuid,
     pub event_name: &'a str,
-    pub payload: &'a Value,
+    pub payload: Value,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -30,15 +31,16 @@ impl OutboxQueue for PgOutboxQueue {
     async fn append(
         &self,
         transaction: Self::Transaction<'_>,
-        payload: &Value,
+        event_id: Uuid,
+        payload: &impl Serialize,
         aggregate_id: &Uuid,
         event_name: impl AsRef<String>,
     ) -> Result<()> {
         let row = NewEvent {
-            id: Uuid::now_v7(),
+            id: event_id,
             aggregate_id,
             event_name: event_name.as_ref(),
-            payload,
+            payload: serde_json::to_value(payload)?,
         };
 
         row.insert_into(outbox_queue::table)
