@@ -14,7 +14,7 @@ pub enum Error {
     #[error("Failed to publish item")]
     RustPostgresError(#[from] tokio_postgres::Error),
 
-    #[cfg(feature = "diesel-async")]
+    #[cfg(any(feature = "diesel-async", feature = "tokio-postgres"))]
     #[error("Failed to serialize event payload")]
     SerializationError(#[from] serde_json::Error),
 
