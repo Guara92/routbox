@@ -1,5 +1,8 @@
 mod schema;
 
+#[cfg(test)]
+mod tests;
+
 use crate::errors::Result;
 use crate::queue::postgres::diesel_async::schema::outbox_queue;
 use crate::queue::OutboxQueue;
