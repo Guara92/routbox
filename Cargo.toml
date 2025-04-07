@@ -21,5 +21,5 @@ serde_json = "1"
 uuid = { version = "1", features = ["v7"] }
 tokio-postgres = { version = "0.7", optional = true, features = ["with-serde_json-1", "with-uuid-1"] }
 diesel = { version = "2.2", optional = true, features = ["serde_json", "uuid"] }
-diesel-async = { git = "ssh://git@github.com/weiznich/diesel_async.git", branch = "main", optional = true, features = ["postgres"] }
+diesel-async = { git = "ssh://git@github.com/weiznich/diesel_async.git", rev = "c9730f6ddd7012d1d13e37262fc31d256e699aca", optional = true, features = ["postgres"] }
 rdkafka = { version = "0.37", optional = true, features = ["tokio"] }
