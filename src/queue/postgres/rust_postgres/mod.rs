@@ -1,4 +1,3 @@
-use crate::errors::Result;
 use crate::queue::OutboxQueue;
 
 use serde::Serialize;
@@ -16,10 +15,10 @@ impl OutboxQueue for PgOutboxQueue {
     async fn append(&self, transaction: Self::Transaction<'_>, event_id: Uuid,
                     payload: &impl Serialize,
                     aggregate_id: Uuid,
-                    event_name: &str) -> Result<()> {
+                    event_type: &str) -> Result<()> {
         let statement = transaction.prepare(INSERT_QUERY).await?;
 
-        transaction.execute(&statement, &[&event_id, &aggregate_id, &serde_json::to_value(payload)?, &event_name]).await?;
+        transaction.execute(&statement, &[&event_id, &aggregate_id, &serde_json::to_value(payload)?, &event_type]).await?;
         Ok(())
     }
 }

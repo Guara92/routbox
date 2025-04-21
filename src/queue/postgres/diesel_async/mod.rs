@@ -13,15 +13,14 @@ use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
 
-pub const CREATE_QUEUE_MIGRATION: &str =
-    include_str!("../migrations/create_queue_table.sql");
+pub const CREATE_QUEUE_MIGRATION: &str = include_str!("../migrations/create_queue_table.sql");
 
 #[derive(Insertable)]
 #[diesel(table_name = outbox_queue)]
 pub struct NewEvent<'a> {
     pub id: Uuid,
     pub aggregate_id: Uuid,
-    pub event_name: &'a str,
+    pub event_type: &'a str,
     pub payload: Value,
 }
 
@@ -37,12 +36,12 @@ impl OutboxQueue for PgOutboxQueue {
         event_id: Uuid,
         payload: &impl Serialize,
         aggregate_id: Uuid,
-        event_name: &str,
+        event_type: &str,
     ) -> Result<()> {
         let row = NewEvent {
             id: event_id,
             aggregate_id,
-            event_name,
+            event_type,
             payload: serde_json::to_value(payload)?,
         };
 
@@ -55,10 +54,7 @@ impl OutboxQueue for PgOutboxQueue {
 }
 
 impl PgOutboxQueue {
-    pub async fn setup_queue(
-        &self,
-        transaction: &mut AsyncPgConnection,
-    ) -> Result<()> {
+    pub async fn setup_queue(&self, transaction: &mut AsyncPgConnection) -> Result<()> {
         // Ensure diesel is set up
         transaction
             .batch_execute(diesel::migration::CREATE_MIGRATIONS_TABLE)
