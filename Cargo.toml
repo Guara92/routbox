@@ -12,6 +12,7 @@ description = "A library to easily implement an outbox pattern"
 [features]
 pg_rust_async = ["tokio-postgres"]
 pg_diesel_async = ["diesel-async", "diesel"]
+pg_diesel_blocking = ["diesel/postgres"]
 kafka_relay = ["rdkafka"]
 
 [dependencies]

@@ -14,13 +14,18 @@ pub enum Error {
     #[error("Failed to publish item")]
     RustPostgresError(#[from] tokio_postgres::Error),
 
-    #[cfg(any(feature = "diesel-async", feature = "tokio-postgres", feature = "rdkafka"))]
+    #[cfg(any(
+        feature = "diesel-async",
+        feature = "diesel",
+        feature = "tokio-postgres",
+        feature = "rdkafka"
+    ))]
     #[error("Failed to serialize event payload")]
     SerializationError(#[from] serde_json::Error),
 
-    #[cfg(feature = "diesel-async")]
+    #[cfg(any(feature = "diesel-async", feature = "diesel"))]
     #[error("Failed to write item to the queue")]
-    DieselAsyncError(#[from] diesel::result::Error),
+    DieselError(#[from] diesel::result::Error),
 
     #[cfg(feature = "diesel-async")]
     #[error("Failed to setup queue")]

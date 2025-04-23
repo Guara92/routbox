@@ -1,5 +1,8 @@
-#[cfg(any(feature = "pg_rust_async", feature = "pg_diesel_async"))]
+#[cfg(any(feature = "pg_rust_async", feature = "pg_diesel_async", feature = "pg_diesel_blocking"))]
 pub mod postgres;
+
+#[cfg(feature = "pg_diesel_blocking")]
+pub use postgres::diesel::DieselQueue;
 
 #[cfg(feature = "pg_diesel_async")]
 pub use postgres::diesel_async::DieselAsyncQueue;
