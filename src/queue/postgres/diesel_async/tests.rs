@@ -112,8 +112,6 @@ async fn test_append_event_success() {
     assert!(append_result.is_ok(), "append failed: {:?}", append_result.err());
 
     // --- Assert ---
-    // Nota: abbiamo rimosso now_ts perché il confronto diretto era problematico
-
     let results = outbox_queue::table
         .select(TestOutboxEvent::as_select())
         .filter(outbox_queue::id.eq(event_id))
