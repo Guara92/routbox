@@ -7,15 +7,15 @@ const INSERT_QUERY: &str = "INSERT INTO outbox_queue (id, aggregate_id, payload,
 
 
 #[derive(Default, Clone)]
-pub struct PgOutboxQueue;
+pub struct RustPostgresQueue;
 
-impl OutboxQueue for PgOutboxQueue {
+impl OutboxQueue for RustPostgresQueue {
     type Transaction<'a> = tokio_postgres::Transaction<'a>;
 
     async fn append(&self, transaction: Self::Transaction<'_>, event_id: Uuid,
                     payload: &impl Serialize,
                     aggregate_id: Uuid,
-                    event_type: &str) -> Result<()> {
+                    event_type: &str) -> crate::errors::Result<()> {
         let statement = transaction.prepare(INSERT_QUERY).await?;
 
         transaction.execute(&statement, &[&event_id, &aggregate_id, &serde_json::to_value(payload)?, &event_type]).await?;
