@@ -11,8 +11,8 @@ pub enum Error {
     PublishError,
 
     #[cfg(feature = "tokio-postgres")]
-    #[error("Failed to publish item")]
-    RustPostgresError(#[from] tokio_postgres::Error),
+    #[error("Failed to write item to the queue")]
+    TokioPostgresError(#[from] tokio_postgres::Error),
 
     #[cfg(any(
         feature = "diesel-async",

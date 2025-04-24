@@ -1,4 +1,8 @@
-#[cfg(any(feature = "pg_rust_async", feature = "pg_diesel_async", feature = "pg_diesel_blocking"))]
+#[cfg(any(
+    feature = "tokio_postgres",
+    feature = "pg_diesel_async",
+    feature = "pg_diesel_blocking"
+))]
 pub mod postgres;
 
 #[cfg(feature = "pg_diesel_blocking")]
@@ -7,8 +11,8 @@ pub use postgres::diesel::PgDieselOutboxQueue;
 #[cfg(feature = "pg_diesel_async")]
 pub use postgres::diesel_async::PgDieselAsyncOutboxQueue;
 
-#[cfg(feature = "pg_rust_async")]
-pub use postgres::rust_postgres::RustPostgresQueue;
+#[cfg(feature = "tokio_postgres")]
+pub use postgres::tokio_postgres::PgTokioOutboxQueue;
 
 use crate::errors::Result;
 
