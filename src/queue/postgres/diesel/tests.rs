@@ -1,19 +1,18 @@
-use crate::queue::postgres::diesel_async::schema::outbox_queue;
-use crate::queue::postgres::diesel_async::DieselAsyncQueue;
-use crate::queue::OutboxQueue;
+use super::super::diesel_schema::outbox_queue;
+
+use crate::queue::postgres::diesel::PgDieselOutboxQueue;
+use crate::queue::BlockingOutboxQueue;
 
 use diesel::prelude::*;
 use diesel::sql_types::Integer;
-use diesel_async::{AsyncConnection, AsyncPgConnection, RunQueryDsl};
+use diesel::{Connection, PgConnection};
 use jiff::Timestamp;
+use jiff_diesel;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-// Define a struct that matches the DB schema for querying data back.
-// Needs Queryable and Selectable (for type safety with .select()).
-// Also Deserialize to check the payload.
-#[derive(Queryable, Selectable, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Queryable, Selectable, Debug, PartialEq, Clone, Deserialize, Serialize)]
 #[diesel(table_name = outbox_queue)]
 struct TestOutboxEvent {
     id: Uuid,
@@ -35,101 +34,102 @@ struct TestOutboxEvent {
     last_error: Option<String>,
 }
 
+/// Struct helper per la query information_schema.
 #[derive(QueryableByName, Debug)]
 struct TableCheck {
     #[diesel(sql_type = Integer)]
     value: i32,
 }
 
-// Helper function to establish connection and start test transaction
-async fn setup_test_db() -> AsyncPgConnection {
+// --- Test Setup ---
+
+/// Helper per ottenere una connessione al DB di test.
+fn get_test_db_conn() -> PgConnection {
+    // Carica .env se presente (utile per DATABASE_URL)
     dotenvy::dotenv().ok();
     let db_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL must be set for integration tests");
-    let mut conn = AsyncPgConnection::establish(&db_url)
-        .await
-        .expect("Failed to establish connection");
-    // Begin a test transaction that rolls back automatically
-    conn.begin_test_transaction()
-        .await
-        .expect("Failed to begin test transaction");
-    conn
+    PgConnection::establish(&db_url).expect("Failed to establish blocking connection")
 }
 
-#[tokio::test]
-async fn test_setup_queue_is_idempotent() {
-    let queue = DieselAsyncQueue;
-    let mut conn = setup_test_db().await;
+// --- Test Cases ---
 
-    // Run setup twice
-    let setup_result1 = queue.setup_queue(&mut conn).await;
-    assert!(setup_result1.is_ok(), "First setup failed");
-    let setup_result2 = queue.setup_queue(&mut conn).await;
-    if let Err(e) = &setup_result2 {
-        eprintln!("Error during second setup_queue call: {:?}", e);
-    }
-    assert!(
-        setup_result2.is_ok(),
-        "Second setup failed (not idempotent?)"
-    );
+#[test]
+fn test_setup_queue_is_idempotent_blocking() {
+    let queue = PgDieselOutboxQueue;
+    let mut conn = get_test_db_conn();
 
-    let table_exists_query = diesel::sql_query(
-        "SELECT 1::INTEGER AS value FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'outbox_queue' LIMIT 1"
-    );
-    let exists_result = table_exists_query
-        .get_result::<TableCheck>(&mut conn)
-        .await;
+    // Usiamo test_transaction per eseguire il setup in una transazione rollbackata
+    let _ = conn.test_transaction::<_, crate::Error, _>(|tx| {
+        // Eseguiamo setup due volte all'interno della stessa transazione
+        let setup_result1 = queue.setup_queue(tx);
+        assert!(setup_result1.is_ok(), "First setup failed: {:?}", setup_result1.err());
 
-    assert!(matches!(exists_result, Ok(TableCheck { value: 1 })), "Table check failed after setup: {:?}", exists_result);
+        let setup_result2 = queue.setup_queue(tx);
+        assert!(setup_result2.is_ok(), "Second setup failed unexpectedly: {:?}", setup_result2.err());
+
+        let table_exists_query = diesel::sql_query(
+            "SELECT 1::INTEGER AS value FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'outbox_queue' LIMIT 1"
+        );
+        let exists_result = table_exists_query
+            .get_result::<TableCheck>(tx);
+
+        assert!(matches!(exists_result, Ok(TableCheck { value: 1 })), "Table check failed after setup: {:?}", exists_result);
+
+        Ok(())
+    });
 }
 
-#[tokio::test]
-async fn test_append_event_success() {
-    let queue = DieselAsyncQueue;
-    let mut conn = setup_test_db().await;
+#[test]
+fn test_append_event_success_blocking() {
+    let queue = PgDieselOutboxQueue;
+    let mut conn = get_test_db_conn();
 
-    queue
-        .setup_queue(&mut conn)
-        .await
-        .expect("Setup queue failed");
+    let _ =
+        conn.test_transaction::<_, crate::Error, _>(|tx| {
+            queue.setup_queue(tx)?;
 
-    let event_id = Uuid::now_v7();
-    let aggregate_id = Uuid::now_v7();
-    let event_type = "TestEventOccurred";
-    let payload = json!({ "data": "sample_value", "count": 123 });
+            let event_id = Uuid::now_v7();
+            let aggregate_id = Uuid::now_v7();
+            let event_type = "BlockingEvent";
+            let payload = json!({ "source": "blocking", "value": 42 });
 
-    // --- Act ---
-    let append_result = queue
-        .append(
-            &mut conn,
-            event_id,
-            &payload,
-            aggregate_id,
-            event_type,
-        )
-        .await;
+            // --- Act ---
+            queue.append(
+                tx,
+                event_id,
+                &payload,
+                aggregate_id,
+                event_type,
+            )?;
 
-    assert!(append_result.is_ok(), "append failed: {:?}", append_result.err());
+            // --- Assert ---
+            let results = outbox_queue::table
+                .select(TestOutboxEvent::as_select())
+                .filter(outbox_queue::id.eq(event_id))
+                .load::<TestOutboxEvent>(tx)?;
 
-    // --- Assert ---
-    let results = outbox_queue::table
-        .select(TestOutboxEvent::as_select())
-        .filter(outbox_queue::id.eq(event_id))
-        .load::<TestOutboxEvent>(&mut conn)
-        .await
-        .expect("Failed to load event from DB");
+            assert_eq!(
+                results.len(),
+                1,
+                "Expected 1 event, found {}",
+                results.len()
+            );
+            let inserted_event = &results[0];
 
-    assert_eq!(results.len(), 1, "Expected 1 event, found {}", results.len());
+            assert_eq!(inserted_event.id, event_id);
+            assert_eq!(inserted_event.aggregate_id, aggregate_id);
+            assert_eq!(inserted_event.event_type, event_type);
+            assert_eq!(inserted_event.payload, payload);
+            assert_eq!(inserted_event.status, "PENDING");
+            assert_eq!(inserted_event.processing_attempts, 0);
+            assert!(inserted_event.last_error.is_none());
 
-    let inserted_event = &results[0];
+            assert_eq!(
+                inserted_event.created_at, inserted_event.updated_at,
+                "created_at should be equal to updated_at on initial insert"
+            );
 
-    assert_eq!(inserted_event.id, event_id);
-    assert_eq!(inserted_event.aggregate_id, aggregate_id);
-    assert_eq!(inserted_event.event_type, event_type);
-    assert_eq!(inserted_event.payload, payload);
-    assert_eq!(inserted_event.status, "PENDING");
-    assert_eq!(inserted_event.processing_attempts, 0);
-    assert!(inserted_event.last_error.is_none());
-
-    assert_eq!(inserted_event.created_at, inserted_event.updated_at, "created_at should be equal to updated_at on initial insert");
+            Ok(())
+        });
 }

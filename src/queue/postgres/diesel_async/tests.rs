@@ -1,5 +1,5 @@
 use crate::queue::postgres::diesel_async::schema::outbox_queue;
-use crate::queue::postgres::diesel_async::DieselAsyncQueue;
+use crate::queue::postgres::diesel_async::PgDieselAsyncOutboxQueue;
 use crate::queue::OutboxQueue;
 
 use diesel::prelude::*;
@@ -58,7 +58,7 @@ async fn setup_test_db() -> AsyncPgConnection {
 
 #[tokio::test]
 async fn test_setup_queue_is_idempotent() {
-    let queue = DieselAsyncQueue;
+    let queue = PgDieselAsyncOutboxQueue;
     let mut conn = setup_test_db().await;
 
     // Run setup twice
@@ -85,7 +85,7 @@ async fn test_setup_queue_is_idempotent() {
 
 #[tokio::test]
 async fn test_append_event_success() {
-    let queue = DieselAsyncQueue;
+    let queue = PgDieselAsyncOutboxQueue;
     let mut conn = setup_test_db().await;
 
     queue

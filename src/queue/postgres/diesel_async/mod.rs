@@ -8,13 +8,13 @@
 //! This schema includes columns for event details, payload, status tracking,
 //! timestamps, and processing attempts, essential for the outbox pattern relay.
 
-mod schema;
-
 #[cfg(test)]
 mod tests;
 
+use super::diesel_schema::outbox_queue;
+use super::CREATE_QUEUE_MIGRATION;
+
 use crate::errors::Result;
-use crate::queue::postgres::diesel_async::schema::outbox_queue;
 use crate::queue::OutboxQueue;
 
 use diesel::prelude::*;
@@ -22,21 +22,6 @@ use diesel_async::{AsyncPgConnection, RunQueryDsl, SimpleAsyncConnection};
 use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
-
-/// Raw SQL string for creating the necessary `outbox_queue` table and its polling index.
-///
-/// Contains the complete DDL (`Data Definition Language`) for the outbox table,
-/// including columns like `id`, `aggregate_id`, `event_type`, `payload`, `status`,
-/// `created_at`, `updated_at`, `processing_attempts`, and `last_error`.
-/// Also includes the `PRIMARY KEY` constraint and the crucial polling index on
-/// `(status, updated_at)`.
-///
-/// This script is idempotent (uses `IF NOT EXISTS`). It can be used for manual
-/// database setup or integrated into application-specific migration tools.
-///
-/// **Note:** Using the optional `setup_queue` function executes this script, but integrating
-/// it into your application's migration flow is often preferred.
-pub const CREATE_QUEUE_MIGRATION: &str = include_str!("../migrations/create_queue_table.sql");
 
 /// Represents the essential data for inserting a *new* event into the `outbox_queue` table.
 #[derive(Insertable)]
@@ -54,10 +39,10 @@ pub struct NewEvent<'a> {
 /// to be passed into the `append` method for database operations. It orchestrates
 /// appending new events according to the outbox pattern principles.
 #[derive(Debug, Default, Clone)]
-pub struct DieselAsyncQueue;
+pub struct PgDieselAsyncOutboxQueue;
 
 /// Implements the `OutboxQueue` trait logic for `diesel-async`.
-impl OutboxQueue for DieselAsyncQueue {
+impl OutboxQueue for PgDieselAsyncOutboxQueue {
     /// Specifies the transaction type required by this implementation
     type Transaction<'a> = &'a mut AsyncPgConnection;
 
@@ -109,7 +94,7 @@ impl OutboxQueue for DieselAsyncQueue {
 }
 
 /// Inherent methods for `DieselAsyncQueue`, including setup helpers.
-impl DieselAsyncQueue {
+impl PgDieselAsyncOutboxQueue {
     /// Optional helper function to idempotently set up the required `outbox_queue`
     /// table and its polling index in the database.
     ///

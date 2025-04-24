@@ -2,10 +2,10 @@
 pub mod postgres;
 
 #[cfg(feature = "pg_diesel_blocking")]
-pub use postgres::diesel::DieselQueue;
+pub use postgres::diesel::PgDieselOutboxQueue;
 
 #[cfg(feature = "pg_diesel_async")]
-pub use postgres::diesel_async::DieselAsyncQueue;
+pub use postgres::diesel_async::PgDieselAsyncOutboxQueue;
 
 #[cfg(feature = "pg_rust_async")]
 pub use postgres::rust_postgres::RustPostgresQueue;
@@ -26,4 +26,17 @@ pub trait OutboxQueue {
         aggregate_id: Uuid,
         event_type: &str,
     ) -> impl Future<Output=Result<()>> + Send;
+}
+
+pub trait BlockingOutboxQueue {
+    type Transaction<'a>;
+
+    fn append(
+        &self,
+        transaction: Self::Transaction<'_>,
+        event_id: Uuid,
+        payload: &impl Serialize,
+        aggregate_id: Uuid,
+        event_type: &str,
+    ) -> Result<()>;
 }
