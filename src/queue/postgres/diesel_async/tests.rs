@@ -1,5 +1,5 @@
-use crate::queue::postgres::diesel_async::schema::outbox_queue;
 use crate::queue::postgres::diesel_async::PgDieselAsyncOutboxQueue;
+use crate::queue::postgres::diesel_schema::outbox_queue;
 use crate::queue::OutboxQueue;
 
 use diesel::prelude::*;
