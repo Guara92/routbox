@@ -1,7 +1,8 @@
 #[cfg(any(
     feature = "tokio_postgres",
     feature = "pg_diesel_async",
-    feature = "pg_diesel_blocking"
+    feature = "pg_diesel_blocking",
+    feature = "pg_sqlx"
 ))]
 pub mod postgres;
 

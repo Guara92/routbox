@@ -18,7 +18,8 @@ pub enum Error {
         feature = "diesel-async",
         feature = "diesel",
         feature = "tokio-postgres",
-        feature = "rdkafka"
+        feature = "rdkafka",
+        feature = "pg_sqlx"
     ))]
     #[error("Failed to serialize event payload")]
     SerializationError(#[from] serde_json::Error),
@@ -28,8 +29,12 @@ pub enum Error {
     DieselError(#[from] diesel::result::Error),
 
     #[cfg(feature = "diesel-async")]
-    #[error("Failed to setup queue")]
+    #[error("Failed to set up the queue")]
     SetupQueueError(#[from] Box<dyn std::error::Error + Sync + Send>),
+
+    #[cfg(feature = "pg_sqlx")]
+    #[error("SQLx error")]
+    SqlxError(#[from] sqlx::Error),
 
     #[cfg(feature = "kafka_relay")]
     #[error("Kafka error")]

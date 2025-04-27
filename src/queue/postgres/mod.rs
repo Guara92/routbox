@@ -7,6 +7,9 @@ pub mod diesel_async;
 #[cfg(feature = "pg_diesel_blocking")]
 pub mod diesel;
 
+#[cfg(feature = "pg_sqlx")]
+pub mod sqlx;
+
 #[cfg(any(feature = "pg_diesel_async", feature = "pg_diesel_blocking"))]
 mod diesel_schema;
 
