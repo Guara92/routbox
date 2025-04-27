@@ -1,0 +1,50 @@
+#[cfg(any(
+    feature = "tokio_postgres",
+    feature = "pg_diesel_async",
+    feature = "pg_diesel_blocking",
+    feature = "pg_sqlx"
+))]
+pub mod postgres;
+
+#[cfg(feature = "pg_diesel_blocking")]
+pub use postgres::diesel::PgDieselOutboxQueue;
+
+#[cfg(feature = "pg_diesel_async")]
+pub use postgres::diesel_async::PgDieselAsyncOutboxQueue;
+
+#[cfg(feature = "tokio_postgres")]
+pub use postgres::tokio_postgres::PgTokioOutboxQueue;
+
+#[cfg(feature = "pg_sqlx")]
+pub use postgres::sqlx::PgSqlxOutboxQueue;
+
+use crate::errors::Result;
+
+use serde::Serialize;
+use uuid::Uuid;
+
+pub trait OutboxQueue {
+    type Transaction<'a>;
+
+    fn append(
+        &self,
+        transaction: Self::Transaction<'_>,
+        event_id: Uuid,
+        payload: &(impl Serialize + Sync),
+        aggregate_id: Uuid,
+        event_type: &str,
+    ) -> impl Future<Output=Result<()>> + Send;
+}
+
+pub trait BlockingOutboxQueue {
+    type Transaction<'a>;
+
+    fn append(
+        &self,
+        transaction: Self::Transaction<'_>,
+        event_id: Uuid,
+        payload: &impl Serialize,
+        aggregate_id: Uuid,
+        event_type: &str,
+    ) -> Result<()>;
+}

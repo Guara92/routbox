@@ -1,0 +1,40 @@
+[package]
+name = "routbox"
+version = "0.1.0"
+edition = "2024"
+authors = ["Daniele Guarascio <guarascio.daniele@gmail.com"]
+readme = "README.md"
+repository = "https://github.com/Guara92/routbox"
+keywords = ["outbox", "database", "distributed-systems", "kafka", "async"]
+categories = ["asynchronous"]
+description = "A library to easily implement an outbox pattern"
+
+[features]
+tokio_postgres = ["tokio-postgres", "tokio-postgres/with-uuid-1", "tokio-postgres/with-serde_json-1"]
+pg_diesel_async = ["diesel-async", "diesel-async/postgres", "diesel", "diesel/serde_json", "diesel/uuid"]
+pg_diesel_blocking = ["diesel", "diesel/postgres", "diesel/serde_json", "diesel/uuid"]
+pg_sqlx = ["sqlx/postgres", "sqlx/uuid", "sqlx/json"]
+kafka_relay = ["rdkafka", "rdkafka/tokio"]
+
+[dependencies]
+thiserror = { version = "2", default-features = false }
+serde = { version = "1", default-features = false }
+serde_json = { version = "1", default-features = false }
+uuid = { version = "1", features = ["v7"], default-features = false }
+sqlx = { version = "0.8", optional = true, default-features = false }
+tokio-postgres = { git = "ssh://git@github.com/sfackler/rust-postgres.git", optional = true, default-features = false } # jiff 0.2 support not released yet
+diesel = { version = "2.2", optional = true, default-features = false }
+diesel-async = { git = "ssh://git@github.com/weiznich/diesel_async.git", rev = "c9730f6ddd7012d1d13e37262fc31d256e699aca", optional = true, default-features = false }
+rdkafka = { version = "0.37", optional = true, default-features = false }
+
+[dev-dependencies]
+diesel = { version = "2.2", features = ["serde_json", "uuid"] }
+dotenvy = "0.15"
+tokio = { version = "1", features = ["rt", "macros"] }
+serde = { version = "1", features = ["derive"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls"] }
+uuid = { version = "1", features = ["v7", "serde"] }
+jiff = { version = "0.2", features = ["serde"] }
+jiff-diesel = { version = "0.1", features = ["postgres"] }
+jiff-sqlx = { version = "0.1", features = ["postgres"] }
+tokio-postgres = { git = "ssh://git@github.com/sfackler/rust-postgres.git", features = ["with-jiff-0_2"] }
