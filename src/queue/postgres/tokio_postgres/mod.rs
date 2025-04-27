@@ -8,9 +8,8 @@
 #[cfg(test)]
 mod tests;
 
-use super::CREATE_QUEUE_MIGRATION;
+use super::{CREATE_QUEUE_MIGRATION, NOTIFY_CHANNEL};
 
-use crate::errors::Result;
 use crate::queue::OutboxQueue;
 
 use serde::Serialize;
@@ -49,7 +48,7 @@ impl OutboxQueue for PgTokioOutboxQueue {
         payload: &(impl Serialize + Sync),
         aggregate_id: Uuid,
         event_type: &str,
-    ) -> Result<()> {
+    ) -> crate::Result<()> {
         let json_payload = serde_json::to_value(payload)?;
 
         const INSERT_QUERY: &str = "\
@@ -60,6 +59,11 @@ impl OutboxQueue for PgTokioOutboxQueue {
             &[&event_id, &aggregate_id, &event_type, &json_payload];
 
         transaction.execute(INSERT_QUERY, params).await?;
+
+        let event_id_str = event_id.to_string();
+        const NOTIFY_QUERY: &str = "SELECT pg_notify($1, $2)";
+        let notify_params: &[&(dyn ToSql + Sync)] = &[&NOTIFY_CHANNEL, &event_id_str];
+        transaction.execute(NOTIFY_QUERY, notify_params).await?;
 
         Ok(())
     }
@@ -81,7 +85,7 @@ impl PgTokioOutboxQueue {
     /// # Errors
     ///
     /// Returns `crate::Error` on database execution failure.
-    pub async fn setup_queue<C>(&self, client: &C) -> Result<()>
+    pub async fn setup_queue<C>(&self, client: &C) -> crate::Result<()>
     where
         C: GenericClient + Sync,
     {

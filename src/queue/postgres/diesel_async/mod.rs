@@ -12,12 +12,13 @@
 mod tests;
 
 use super::diesel_schema::outbox_queue;
-use super::CREATE_QUEUE_MIGRATION;
+use super::{CREATE_QUEUE_MIGRATION, NOTIFY_CHANNEL};
 
 use crate::errors::Result;
 use crate::queue::OutboxQueue;
 
 use diesel::prelude::*;
+use diesel::sql_query;
 use diesel_async::{AsyncPgConnection, RunQueryDsl, SimpleAsyncConnection};
 use serde::Serialize;
 use serde_json::Value;
@@ -86,6 +87,13 @@ impl OutboxQueue for PgDieselAsyncOutboxQueue {
         };
 
         row.insert_into(outbox_queue::table)
+            .execute(transaction)
+            .await?;
+
+        let event_id_str = event_id.to_string();
+        sql_query("SELECT pg_notify($1, $2)")
+            .bind::<diesel::sql_types::Text, _>(NOTIFY_CHANNEL)
+            .bind::<diesel::sql_types::Text, _>(&event_id_str)
             .execute(transaction)
             .await?;
 

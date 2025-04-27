@@ -26,5 +26,10 @@ mod diesel_schema;
 ///
 /// **Note:** Using the optional `setup_queue` function executes this script, but integrating
 /// it into your application's migration flow is often preferred.
-pub const CREATE_QUEUE_MIGRATION: &str =
+#[cfg(
+    any(feature = "pg_diesel_async", feature = "pg_diesel_blocking", feature = "tokio_postgres")
+)] // sqlx can't run multiple statements at the same time
+const CREATE_QUEUE_MIGRATION: &str =
     include_str!("migrations/create_queue_table.sql");
+
+const NOTIFY_CHANNEL: &str = "routbox_notify";

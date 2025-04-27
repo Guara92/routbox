@@ -10,7 +10,7 @@
 mod tests;
 
 use super::diesel_schema::outbox_queue;
-use super::CREATE_QUEUE_MIGRATION;
+use super::{CREATE_QUEUE_MIGRATION, NOTIFY_CHANNEL};
 
 use crate::errors::Result;
 use crate::queue::BlockingOutboxQueue;
@@ -18,6 +18,7 @@ use crate::queue::BlockingOutboxQueue;
 use diesel::connection::SimpleConnection;
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
+use diesel::sql_query;
 use serde::Serialize;
 use serde_json::Value;
 use uuid::Uuid;
@@ -75,6 +76,12 @@ impl BlockingOutboxQueue for PgDieselOutboxQueue {
             .values(&row)
             .execute(transaction)?;
 
+        let event_id_str = event_id.to_string();
+        sql_query("SELECT pg_notify($1, $2)")
+            .bind::<diesel::sql_types::Text, _>(NOTIFY_CHANNEL)
+            .bind::<diesel::sql_types::Text, _>(&event_id_str)
+            .execute(transaction)?;
+
         Ok(())
     }
 }
@@ -97,10 +104,7 @@ impl PgDieselOutboxQueue {
     /// # Errors
     ///
     /// Returns `crate::Error` on database execution failure.
-    pub fn setup_queue(
-        &self,
-        connection: &mut PgConnection,
-    ) -> Result<()> {
+    pub fn setup_queue(&self, connection: &mut PgConnection) -> Result<()> {
         connection.batch_execute(CREATE_QUEUE_MIGRATION)?;
 
         Ok(())

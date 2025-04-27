@@ -7,6 +7,7 @@ mod tests;
 use crate::errors::Result;
 use crate::queue::OutboxQueue;
 
+use crate::queue::postgres::NOTIFY_CHANNEL;
 use serde::Serialize;
 use sqlx::{Executor, PgConnection};
 use uuid::Uuid;
@@ -36,9 +37,9 @@ ALTER TABLE outbox_queue ADD CONSTRAINT status_check CHECK (status IN ('PENDING'
 /// A concrete asynchronous implementation of `AsyncOutboxQueue` using `sqlx`.
 /// Stateless struct; requires an Executor (Pool, Connection, or Transaction) for operations.
 #[derive(Debug, Default, Clone)]
-pub struct SqlxPgOutboxQueue;
+pub struct PgSqlxOutboxQueue;
 
-impl SqlxPgOutboxQueue {
+impl PgSqlxOutboxQueue {
     /// Optional async helper function to set up the `outbox_queue` table and index.
     /// Executes the DDL script from `CREATE_QUEUE_MIGRATION`.
     ///
@@ -52,9 +53,7 @@ impl SqlxPgOutboxQueue {
     ///
     /// # Errors
     /// Returns `crate::Error` wrapping `sqlx::Error` on failure.
-    pub async fn setup_queue(&self, conn: &mut PgConnection,
-    ) -> Result<()>
-    {
+    pub async fn setup_queue(&self, conn: &mut PgConnection) -> Result<()> {
         conn.execute(CREATE_TABLE_SQL).await?;
         conn.execute(CREATE_INDEX_SQL).await?;
         conn.execute(DROP_CONSTRAINT_SQL).await?;
@@ -64,7 +63,7 @@ impl SqlxPgOutboxQueue {
     }
 }
 
-impl OutboxQueue for SqlxPgOutboxQueue {
+impl OutboxQueue for PgSqlxOutboxQueue {
     /// The transaction type is conceptually a mutable reference to a `PgConnection`.
     /// `sqlx::Transaction<'c, Postgres>` derefs to `&'c mut PgConnection`.
     type Transaction<'a> = &'a mut PgConnection;
@@ -89,7 +88,14 @@ impl OutboxQueue for SqlxPgOutboxQueue {
             .bind(aggregate_id)
             .bind(event_type)
             .bind(&json_payload)
-            .execute(transaction)
+            .execute(&mut *transaction)
+            .await?;
+
+        let event_id_str = event_id.to_string();
+        sqlx::query("SELECT pg_notify($1, $2)")
+            .bind(NOTIFY_CHANNEL)
+            .bind(&event_id_str) // Passa l'ID come stringa nel payload della notifica
+            .execute(&mut *transaction) // Usa lo stesso executor (&mut PgConnection)
             .await?;
 
         Ok(())

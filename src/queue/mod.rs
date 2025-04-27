@@ -15,6 +15,9 @@ pub use postgres::diesel_async::PgDieselAsyncOutboxQueue;
 #[cfg(feature = "tokio_postgres")]
 pub use postgres::tokio_postgres::PgTokioOutboxQueue;
 
+#[cfg(feature = "pg_sqlx")]
+pub use postgres::sqlx::PgSqlxOutboxQueue;
+
 use crate::errors::Result;
 
 use serde::Serialize;
